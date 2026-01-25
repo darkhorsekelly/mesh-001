@@ -44,12 +44,7 @@ export class LensOverlay {
     this.graphics.cut();
     this.graphics.fill({ color: 0x0a0a0f });
     
-    // Vignette is now handled by the starfield shader and filters
-    // Removed vignette rings - they were creating a visible "second lens" effect
-    
-    // Edge effects removed - handled by filters
-    // No visible strokes to avoid "second lens" appearance
-    
+      
     // Inner lens highlight (subtle glass reflection)
     this.graphics.arc(cx - lensRadius * 0.3, cy - lensRadius * 0.3, lensRadius * 0.7, Math.PI * 1.2, Math.PI * 1.7);
     this.graphics.stroke({ color: 0xffffff, width: 2, alpha: 0.02 });

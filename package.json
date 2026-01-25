@@ -9,7 +9,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "tsx ./index.ts",
-    "build": "tsc && node dist/index.js"
+    "build": "tsc && node dist/index.js",
+    "test-bed": "tsx src/test-bed.ts"
   },
   "dependencies": {
     "@types/node": "^25.0.6",

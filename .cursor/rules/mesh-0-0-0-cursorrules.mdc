@@ -1,0 +1,116 @@
+---
+name: mesh-0-0-0-cursorrules
+description: The "AI Guardrails" ensuring high-fidelity implementation.
+---
+
+MESH 1995: Cursor Rules & Coding Standards
+==========================================
+
+0\. The Source of Truth Hierarchy
+---------------------------------
+
+1. **Scope & Implementation:** project\_specs\_0\_0\_0.md
+
+    * _Always_ prioritize this file for what code to write _now_. It defines the boundaries of the prototype.
+
+2. **Design Intent & Flavor:** game\_design\_doc\_mesh\_95\_0\_0\_1.md
+
+    * _Always_ consult this file when making decisions about naming, aesthetic "feel," mechanic logic, or future-proofing.
+
+    * If the Spec is silent on a specific behavior (e.g., "What happens to a bond during a merger?"), consult the GDD.
+
+    * _Constraint:_ Do not implement features from the GDD that are not in the Spec (e.g., don't build the Merger system yet), but write code that is _compatible_ with that future system.
+
+1\. Core Philosophy: "The Engine is a Library"
+----------------------------------------------
+
+* **Rule:** The src/engine folder must be **Pure TypeScript**.
+
+* **Constraint:** NEVER import react, pixi.js, socket.io, or fs inside src/engine.
+
+* **Reasoning:** The game logic must be testable in a console window without a UI or Server.
+
+* **Pattern:** Use Dependency Injection for randomness and time.
+
+2\. Visual Fidelity Guidelines (PixiJS)
+---------------------------------------
+
+* **Rule:** Do not use PIXI.Sprite for planets or celestial bodies.
+
+* **Constraint:** ALWAYS use PIXI.Mesh with custom Fragment Shaders (.ts strings containing GLSL).
+
+* **Aesthetic:**
+
+  * **Space View:** "Optical/Telescope" (Barrel Distortion, Chromatic Aberration, Noise).
+
+  * **Surface View:** "Lidar/Data" (Vector Graphics, Wireframes, Dithering).
+
+  * **Orbit View:** "Cinematic/Naked Eye" (High-end Shaders, Rayleigh Scattering, Specular Glint).
+
+* **Anti-Pattern:** Do not load large PNG textures. Procedurally generate visuals using UVs and Noise.
+
+3\. Data Integrity & Persistence
+--------------------------------
+
+* **Rule:** All state mutations must happen via **Resolvers**.
+
+* **Constraint:** Never mutate the State object directly in UI components.
+
+* **Pattern:** Action -> Queue -> Resolver(State, Action) -> NewState.
+
+* **Database:** Use better-sqlite3 synchronously. Use transactions for all multi-step writes.
+
+4\. The "Sensor Stack" UI Rules
+-------------------------------
+
+* **Rule:** The UI (React) is an "Overlay" on top of the View (Pixi).
+
+* **Constraint:** Game Entities (Ships, Planets) are NEVER DOM elements. They are WebGL.
+
+* **Constraint:** UI Elements (Menus, Lists, Chat) are NEVER WebGL. They are React DOM.
+
+* **Interaction:** React emits Socket events. Engine updates State. Pixi visualizes State.
+
+5\. Audio as Data
+-----------------
+
+* **Rule:** Never play sounds directly from interaction handlers (e.g., onClick).
+
+* **Pattern:** onClick -> emit(ACTION) -> AudioBus.on(ACTION) -> PlaySound.
+
+* **Reasoning:** Ensures audio plays even if the action was triggered by the server or an automated system.
+
+* **Aesthetic:** Consult the GDD ("Audio Architecture") for the specific "Cassette Futurism" sound profile.
+
+6\. TypeScript Standards
+------------------------
+
+* **Strictness:** noImplicitAny: true, strictNullChecks: true.
+
+* **Types:** Define all Zod schemas in src/shared/schemas.ts.
+
+* **Naming:**
+
+  * Components: PascalCase (e.g., OrbitViewport)
+
+  * Systems: camelCase (e.g., movementSystem)
+
+  * Constants: UPPER\_SNAKE\_CASE (e.g., TICK\_RATE\_MS)
+
+7\. Anti-Patterns to Avoid
+--------------------------
+
+* **"God Components":** Do not put logic, rendering, and input in one file. Split them: InputManager, Renderer, GameState.
+
+* **Variable Time Steps:** The physics engine is **Fixed Step**. Do not use deltaTime for game logic simulation (only for visual interpolation).
+
+* **Hardcoded IDs:** Always generate UUIDs for entities.
+
+8\. Specific "MESH 1995" Logic
+------------------------------
+
+* **Corpses:** If Integrity <= 0, entity type becomes CORPSE. It is not deleted.
+
+* **Ghosts:** Players exist independent of Bodies.
+
+* **Fog:** Always check last\_seen\_tick before rendering entity details.

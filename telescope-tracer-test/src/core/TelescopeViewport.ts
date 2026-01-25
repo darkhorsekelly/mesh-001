@@ -18,6 +18,7 @@ import { LensOverlay } from '../overlays/LensOverlay';
 import { BarrelDistortionFilter } from '../filters/BarrelDistortionFilter';
 import { ChromaticAberrationFilter } from '../filters/ChromaticAberrationFilter';
 import { AlphaMaskFilter } from '../filters/AlphaMaskFilter';
+import type { PlanetData } from '../views/OrbitViewport';
 
 export class TelescopeViewport {
   private app!: Application;
@@ -61,6 +62,9 @@ export class TelescopeViewport {
   // UI elements
   private zoomDisplay!: HTMLElement;
   private coordsDisplay!: HTMLElement;
+  
+  // Callback for planet clicks
+  public onPlanetClick?: (planetData: PlanetData) => void;
   
   async init(): Promise<void> {
     this.app = new Application();
@@ -371,15 +375,32 @@ export class TelescopeViewport {
     
     // Check Gas Giant (shader mesh)
     if (this.gasGiantMesh.containsPoint(screenX, screenY, this.currentZoom)) {
-      console.log('Clicked on gas_giant');
+      if (this.onPlanetClick) {
+        this.onPlanetClick({
+          type: 'gas_giant',
+          seed: 42, // Gas giant seed
+          radius: CONFIG.GAS_GIANT_RADIUS,
+        });
+      }
       return;
     }
     
     // Check other celestial bodies
-    const bodies = [this.mars, this.earth, this.moon];
-    for (const body of bodies) {
+    const bodies = [
+      { body: this.mars, seed: 17 },
+      { body: this.earth, seed: 91 },
+      { body: this.moon, seed: 33 },
+    ];
+    
+    for (const { body, seed } of bodies) {
       if (body.containsPoint(screenX, screenY, this.currentZoom)) {
-        console.log(`Clicked on ${body.type}`);
+        if (this.onPlanetClick) {
+          this.onPlanetClick({
+            type: body.type,
+            seed: seed,
+            radius: body.radius,
+          });
+        }
         return;
       }
     }
@@ -409,5 +430,25 @@ export class TelescopeViewport {
   
   setAudioDebounce(ms: number): void {
     this.audioManager.setDebounceMs(ms);
+  }
+  
+  /** Get master container for transitions */
+  getMasterContainer(): Container {
+    return this.masterContainer;
+  }
+  
+  /** Get PixiJS Application instance */
+  getApp(): Application {
+    return this.app;
+  }
+  
+  /** Show telescope viewport */
+  show(): void {
+    this.masterContainer.visible = true;
+  }
+  
+  /** Hide telescope viewport */
+  hide(): void {
+    this.masterContainer.visible = false;
   }
 }
