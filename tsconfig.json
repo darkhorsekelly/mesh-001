@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-      // Base Options recommended for all projects
+      // Base options
       "esModuleInterop": true,
       "skipLibCheck": true,
       "target": "es2022",
@@ -9,18 +9,29 @@
       "moduleDetection": "force",
       "isolatedModules": true,
       "verbatimModuleSyntax": true,
-      // Enable strict type checking so you can catch bugs early
+
+      // Strict type checking
       "strict": true,
       "noUncheckedIndexedAccess": true,
       "noImplicitOverride": true,
-      // Transpile our TypeScript code to JavaScript
+
+      // Module resolution
       "module": "NodeNext",
       "outDir": "dist",
+
+      // JSX support for React
+      "jsx": "react-jsx",
+
+      // Libraries
       "lib": [
-        "es2022"
-      ]
+        "es2022",
+        "dom",
+        "dom.iterable"
+      ],
+
+      // Vite compatibility
+      "types": ["vite/client"]
     },
-    // Include the necessary files for your project
     "include": [
       "**/*.ts",
       "**/*.tsx"

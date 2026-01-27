@@ -5,19 +5,33 @@
   "license": "ISC",
   "author": "",
   "type": "module",
-  "main": "index.ts",
+  "main": "dist/src/server/main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "tsx ./index.ts",
-    "build": "tsc && node dist/index.js",
-    "test-bed": "tsx src/test-bed.ts"
+    "server": "tsx src/server/main.ts",
+    "dev": "vite",
+    "build": "tsc",
+    "build:client": "vite build",
+    "start": "node dist/src/server/main.js"
   },
   "dependencies": {
+    "@pixi/react": "^8.0.5",
     "@types/node": "^25.0.6",
-    "ollama": "^0.6.3"
+    "better-sqlite3": "^12.6.2",
+    "ollama": "^0.6.3",
+    "pixi.js": "^8.15.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.3.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^6.1.0"
   }
 }

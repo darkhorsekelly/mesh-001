@@ -1,10 +1,21 @@
 ---
 name: mesh-0-0-0-cursorrules
 description: The "AI Guardrails" ensuring high-fidelity implementation.
+alwaysApply: true
 ---
 
 MESH 1995: Cursor Rules & Coding Standards
 ==========================================
+
+_Personal preferences:_
+
+* I hate capitalizing words in comments other than the first word, unless there is a reason. Don't comment "Game State...", comment "Game state is..."
+
+* I hate comments that are on the same line as the code. Do not create these, put them above the line of code they apply to.
+
+* I despise comments that are communications from Cursor to me. Do not leave these. Write comments as if you are the developer, not an agent explaining its work.
+
+* I despise comments that communicate EDITS or are a response to a particular prompt. Write comments as if you are the developer. Comments should provide context for the code that's actually there (only), not provide context about what was there before, or why Cursor agent changed it based on a prompt.
 
 0\. The Source of Truth Hierarchy
 ---------------------------------
@@ -15,7 +26,7 @@ MESH 1995: Cursor Rules & Coding Standards
 
 2. **Design Intent & Flavor:** game\_design\_doc\_mesh\_95\_0\_0\_1.md
 
-    * _Always_ consult this file when making decisions about naming, aesthetic "feel," mechanic logic, or future-proofing.
+    * _Always_ consult this file when making decisions about naming, aesthetic "feel," mechanic logic, and future-proofing.
 
     * If the Spec is silent on a specific behavior (e.g., "What happens to a bond during a merger?"), consult the GDD.
 
@@ -80,7 +91,7 @@ MESH 1995: Cursor Rules & Coding Standards
 
 * **Reasoning:** Ensures audio plays even if the action was triggered by the server or an automated system.
 
-* **Aesthetic:** Consult the GDD ("Audio Architecture") for the specific "Cassette Futurism" sound profile.
+* **Aesthetic:** Consult the GDD ("Audio architecture") for the specific "Cassette Futurism" sound profile.
 
 6\. TypeScript Standards
 ------------------------
@@ -108,8 +119,6 @@ MESH 1995: Cursor Rules & Coding Standards
 
 8\. Specific "MESH 1995" Logic
 ------------------------------
-
-* **Corpses:** If Integrity <= 0, entity type becomes CORPSE. It is not deleted.
 
 * **Ghosts:** Players exist independent of Bodies.
 
