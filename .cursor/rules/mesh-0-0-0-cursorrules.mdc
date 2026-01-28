@@ -1,125 +1,52 @@
 ---
 name: mesh-0-0-0-cursorrules
-description: The "AI Guardrails" ensuring high-fidelity implementation.
+description: The "AI Guardrails" ensuring high-fidelity implementation of MESH 95.
 alwaysApply: true
 ---
 
-MESH 1995: Cursor Rules & Coding Standards
-==========================================
+# MESH 1995: Cursor Rules & Coding Standards
 
-_Personal preferences:_
+## 0. Personal Formatting & Communication Prefixes
+- **Comment Capitalization:** Use lowercase after the first word in comments (e.g., // the engine resolves ticks, not // The Engine Resolves Ticks).
+- **Comment Placement:** Never place comments on the same line as code. Place them on the line above the target code.
+- **Identity:** Write comments as a lead developer on the project. Never use "agent" language (e.g., avoid "I have updated this because...").
+- **No Meta-Comments:** Do not leave comments explaining edits, responding to prompts, or using "TODO: Changed per instructions." Comments must only provide context for the code that currently exists.
 
-* I hate capitalizing words in comments other than the first word, unless there is a reason. Don't comment "Game State...", comment "Game state is..."
+## 1. The Source of Truth Hierarchy
+1. **Scope & Implementation:** `project_specs_0_0_0.md`. Prioritize for immediate boundaries.
+2. **Design Intent & Flavor:** `game_design_doc_mesh_95_0_0_1.md`. Consult for naming, aesthetic "feel," and future-proofing.
+3. **Strict Isolation:** Do not implement features from the GDD not in the Spec, but ensure current code is compatible with them.
 
-* I hate comments that are on the same line as the code. Do not create these, put them above the line of code they apply to.
+## 2. Core Philosophy: "The Engine is a Library"
+- **Rule:** `src/engine` must be **Pure TypeScript**. No `react`, `pixi.js`, `socket.io`, or `fs` imports.
+- **Fixed-Point (FP) Absolute:** NEVER use floating-point numbers for engine logic (position, velocity, distance). Use the established `FP` type and `math.ts` utilities (scaling factor 1000).
+- **Deterministic Pipeline:** State mutation only occurs in the `tickResolver` via a pipeline of reducers: `applyActions -> applyManeuver -> applyZoomStateTransition`.
 
-* I despise comments that are communications from Cursor to me. Do not leave these. Write comments as if you are the developer, not an agent explaining its work.
+## 3. Network & State Architecture
+- **The Network is a Service:** Initialize Socket.io as a **Module-level Singleton**. Do not initialize inside React `useEffect`. Hooks should only manage subscriptions.
+- **Server Authority:** The client is a "Pure Terminal." 
+    - **No Action Shadowing:** Do not store `localActionQueue` in React state.
+    - **Authoritative Sync:** Intent is emitted via `CMD_QUEUE_ACTION`. The queue is only "real" once the server broadcasts it back from the SQLite source of truth.
+    - **Ghosts:** Ghost projections must use the `ServerPendingActions` list + `projectionSystem` logic. Never predict position based on local-only state.
 
-* I despise comments that communicate EDITS or are a response to a particular prompt. Write comments as if you are the developer. Comments should provide context for the code that's actually there (only), not provide context about what was there before, or why Cursor agent changed it based on a prompt.
+## 4. Visual & UI "Sensor Stack" Rules
+- **The FP Boundary:** The UI speaks in Screen Pixels. The Engine speaks in FP. Conversion happens exactly once in `DisplayUtils` or `fpToScreen` mappers. No raw FP integers in JSX.
+- **Stale Data:** Always check `last_seen_tick` before rendering entity details. Entities not seen in the current tick must display "STALE DATA" labels.
+- **Aesthetic:** High-contrast Black & White. Use `PIXI.Graphics` for circles (celestials) and points (entities). No textures.
+- **Selection:** Use the `inputEvents.ts` bus to decouple clicks from reactions. All selection (Viewport or List) must emit to the bus.
 
-0\. The Source of Truth Hierarchy
----------------------------------
+## 5. Audio as Data
+- **Pattern:** `interaction -> emit(ACTION) -> AudioBus.on(ACTION) -> PlaySound`. 
+- **Rule:** Never play sounds directly from `onClick` handlers. Audio must be driven by the event bus to ensure synchronization.
 
-1. **Scope & Implementation:** project\_specs\_0\_0\_0.md
+## 6. TypeScript & Persistence
+- **Strictness:** `noImplicitAny: true`, `strictNullChecks: true`.
+- **Database:** Use `better-sqlite3` synchronously with WAL mode. All `saveTick` operations must be wrapped in an atomic SQL transaction encompassing Ticks, Actions, and Snapshots.
+- **Naming:** - Components: `PascalCase`
+    - Systems: `camelCase`
+    - Constants: `UPPER_SNAKE_CASE`
 
-    * _Always_ prioritize this file for what code to write _now_. It defines the boundaries of the prototype.
-
-2. **Design Intent & Flavor:** game\_design\_doc\_mesh\_95\_0\_0\_1.md
-
-    * _Always_ consult this file when making decisions about naming, aesthetic "feel," mechanic logic, and future-proofing.
-
-    * If the Spec is silent on a specific behavior (e.g., "What happens to a bond during a merger?"), consult the GDD.
-
-    * _Constraint:_ Do not implement features from the GDD that are not in the Spec (e.g., don't build the Merger system yet), but write code that is _compatible_ with that future system.
-
-1\. Core Philosophy: "The Engine is a Library"
-----------------------------------------------
-
-* **Rule:** The src/engine folder must be **Pure TypeScript**.
-
-* **Constraint:** NEVER import react, pixi.js, socket.io, or fs inside src/engine.
-
-* **Reasoning:** The game logic must be testable in a console window without a UI or Server.
-
-* **Pattern:** Use Dependency Injection for randomness and time.
-
-2\. Visual Fidelity Guidelines (PixiJS)
----------------------------------------
-
-* **Rule:** Do not use PIXI.Sprite for planets or celestial bodies.
-
-* **Constraint:** ALWAYS use PIXI.Mesh with custom Fragment Shaders (.ts strings containing GLSL).
-
-* **Aesthetic:**
-
-  * **Space View:** "Optical/Telescope" (Barrel Distortion, Chromatic Aberration, Noise).
-
-  * **Surface View:** "Lidar/Data" (Vector Graphics, Wireframes, Dithering).
-
-  * **Orbit View:** "Cinematic/Naked Eye" (High-end Shaders, Rayleigh Scattering, Specular Glint).
-
-* **Anti-Pattern:** Do not load large PNG textures. Procedurally generate visuals using UVs and Noise.
-
-3\. Data Integrity & Persistence
---------------------------------
-
-* **Rule:** All state mutations must happen via **Resolvers**.
-
-* **Constraint:** Never mutate the State object directly in UI components.
-
-* **Pattern:** Action -> Queue -> Resolver(State, Action) -> NewState.
-
-* **Database:** Use better-sqlite3 synchronously. Use transactions for all multi-step writes.
-
-4\. The "Sensor Stack" UI Rules
--------------------------------
-
-* **Rule:** The UI (React) is an "Overlay" on top of the View (Pixi).
-
-* **Constraint:** Game Entities (Ships, Planets) are NEVER DOM elements. They are WebGL.
-
-* **Constraint:** UI Elements (Menus, Lists, Chat) are NEVER WebGL. They are React DOM.
-
-* **Interaction:** React emits Socket events. Engine updates State. Pixi visualizes State.
-
-5\. Audio as Data
------------------
-
-* **Rule:** Never play sounds directly from interaction handlers (e.g., onClick).
-
-* **Pattern:** onClick -> emit(ACTION) -> AudioBus.on(ACTION) -> PlaySound.
-
-* **Reasoning:** Ensures audio plays even if the action was triggered by the server or an automated system.
-
-* **Aesthetic:** Consult the GDD ("Audio architecture") for the specific "Cassette Futurism" sound profile.
-
-6\. TypeScript Standards
-------------------------
-
-* **Strictness:** noImplicitAny: true, strictNullChecks: true.
-
-* **Types:** Define all Zod schemas in src/shared/schemas.ts.
-
-* **Naming:**
-
-  * Components: PascalCase (e.g., OrbitViewport)
-
-  * Systems: camelCase (e.g., movementSystem)
-
-  * Constants: UPPER\_SNAKE\_CASE (e.g., TICK\_RATE\_MS)
-
-7\. Anti-Patterns to Avoid
---------------------------
-
-* **"God Components":** Do not put logic, rendering, and input in one file. Split them: InputManager, Renderer, GameState.
-
-* **Variable Time Steps:** The physics engine is **Fixed Step**. Do not use deltaTime for game logic simulation (only for visual interpolation).
-
-* **Hardcoded IDs:** Always generate UUIDs for entities.
-
-8\. Specific "MESH 1995" Logic
-------------------------------
-
-* **Ghosts:** Players exist independent of Bodies.
-
-* **Fog:** Always check last\_seen\_tick before rendering entity details.
+## 7. Anti-Patterns to Avoid
+- **"God Components":** Do not mix logic, rendering, and input.
+- **Floating Point Leak:** Never pass raw `number` types from the engine to the UI without passing through a formatter.
+- **Shadowing:** Never create a client-side state that "mirrors" what should be in the database.

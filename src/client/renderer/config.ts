@@ -14,6 +14,14 @@ export function fpToScreen(fp: number): number {
     return fp / FP_SCALE;
 }
 
+// Inverse conversion: screen coordinates back to fixed-point
+export function screenToFP(screen: number): number {
+    return Math.round(screen * FP_SCALE);
+}
+
+// Click radius for entity selection (in screen pixels)
+export const CLICK_RADIUS = 20;
+
 // -----------------------------------------------
 // Viewport
 // -----------------------------------------------

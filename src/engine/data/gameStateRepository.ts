@@ -62,6 +62,8 @@ export class GameStateRepository {
     private stmtGetLatestTick!: Database.Statement;
     private stmtLoadSnapshot!: Database.Statement;
     private stmtLoadActions!: Database.Statement;
+    private stmtLoadPendingActions!: Database.Statement;
+    private stmtDeletePendingActions!: Database.Statement;
     
     constructor(dbPath: string = ':memory:') {
         this.db = new Database(dbPath);
@@ -108,9 +110,28 @@ export class GameStateRepository {
             )
         `);
         
+        // Create pending_actions table - actions queued for the NEXT tick
+        // These are persisted immediately and survive server restarts
+        this.db.exec(`
+            CREATE TABLE IF NOT EXISTS pending_actions (
+                id TEXT PRIMARY KEY,
+                target_tick INTEGER NOT NULL,
+                controller_id TEXT NOT NULL,
+                entity_id TEXT NOT NULL,
+                action_type TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        
         // Index for faster action lookups by tick
         this.db.exec(`
             CREATE INDEX IF NOT EXISTS idx_actions_tick_id ON actions(tick_id)
+        `);
+        
+        // Index for pending actions by target tick
+        this.db.exec(`
+            CREATE INDEX IF NOT EXISTS idx_pending_actions_target_tick ON pending_actions(target_tick)
         `);
     }
     
@@ -142,6 +163,16 @@ export class GameStateRepository {
         this.stmtLoadActions = this.db.prepare(`
             SELECT id, tick_id, controller_id, entity_id, action_type, payload
             FROM actions WHERE tick_id = ?
+        `);
+        
+        this.stmtLoadPendingActions = this.db.prepare(`
+            SELECT id, target_tick, controller_id, entity_id, action_type, payload
+            FROM pending_actions WHERE target_tick = ?
+            ORDER BY created_at ASC
+        `);
+        
+        this.stmtDeletePendingActions = this.db.prepare(`
+            DELETE FROM pending_actions WHERE target_tick = ?
         `);
     }
     
@@ -216,6 +247,87 @@ export class GameStateRepository {
     tickExists(tick: number): boolean {
         const row = this.db.prepare('SELECT 1 FROM ticks WHERE id = ?').get(tick);
         return row !== undefined;
+    }
+    
+    // -----------------------------------------------
+    // Pending actions (server-authoritative queue)
+    // -----------------------------------------------
+    
+    /**
+     * Save an action to the pending queue
+     * Persists immediately for durability
+     */
+    savePendingAction(targetTick: number, action: PlayerAction): void {
+        this.db.prepare(`
+            INSERT INTO pending_actions (id, target_tick, controller_id, entity_id, action_type, payload)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `).run(
+            action.id,
+            targetTick,
+            action.controller_id,
+            action.entity_id,
+            action.action_type,
+            JSON.stringify(action.payload)
+        );
+    }
+    
+    /**
+     * Load all pending actions for a specific target tick
+     * Used to send authoritative queue to clients
+     */
+    loadPendingActions(targetTick: number): PlayerAction[] {
+        const rows = this.stmtLoadPendingActions.all(targetTick) as Array<{
+            id: string;
+            target_tick: number;
+            controller_id: string;
+            entity_id: string;
+            action_type: string;
+            payload: string;
+        }>;
+        
+        return rows.map(row => ({
+            id: row.id,
+            controller_id: row.controller_id,
+            entity_id: row.entity_id,
+            action_type: row.action_type,
+            payload: JSON.parse(row.payload),
+        }));
+    }
+    
+    /**
+     * Clear pending actions for a tick (after tick execution)
+     * Called as part of the tick resolution process
+     */
+    clearPendingActions(targetTick: number): void {
+        this.stmtDeletePendingActions.run(targetTick);
+    }
+    
+    /**
+     * Move pending actions to the executed actions table
+     * Atomic operation as part of tick resolution
+     */
+    commitPendingActions(targetTick: number, executedTick: number): PlayerAction[] {
+        const pendingActions = this.loadPendingActions(targetTick);
+        
+        const transaction = this.db.transaction(() => {
+            // Copy to historical actions table
+            for (const action of pendingActions) {
+                this.stmtInsertAction.run(
+                    action.id,
+                    executedTick,
+                    action.controller_id,
+                    action.entity_id,
+                    action.action_type,
+                    JSON.stringify(action.payload)
+                );
+            }
+            
+            // Clear from pending
+            this.clearPendingActions(targetTick);
+        });
+        
+        transaction();
+        return pendingActions;
     }
     
     /**

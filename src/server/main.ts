@@ -111,8 +111,16 @@ function createInitialState(): GameState {
 // -----------------------------------------------
 
 let currentState: GameState;
-let actionQueue: PlayerAction[] = [];
 const repo = new GameStateRepository(DB_PATH);
+
+// -----------------------------------------------
+// Composite payload type (state + pending actions)
+// -----------------------------------------------
+
+interface WorldStatePayload {
+    state: GameState;
+    pendingActions: PlayerAction[];
+}
 
 // -----------------------------------------------
 // Socket event types
@@ -120,8 +128,9 @@ const repo = new GameStateRepository(DB_PATH);
 
 // For sending events to the client
 interface ServerToClientEvents {
-    STATE_UPDATE: (state: GameState) => void;
-    TICK_EXECUTED: (state: GameState) => void;
+    STATE_UPDATE: (payload: WorldStatePayload) => void;
+    TICK_EXECUTED: (payload: WorldStatePayload) => void;
+    PENDING_ACTIONS_UPDATE: (pendingActions: PlayerAction[]) => void;
     ERROR: (message: string) => void;
 }
 
@@ -129,6 +138,7 @@ interface ServerToClientEvents {
 interface ClientToServerEvents {
     CMD_EXECUTE_TICK: () => void;
     CMD_QUEUE_ACTION: (action: PlayerAction) => void;
+    CMD_REQUEST_STATE: () => void;
 }
 
 // -----------------------------------------------
@@ -191,45 +201,89 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
 // Load or create initial state
 currentState = initializeState();
 
+// -----------------------------------------------
+// Helper: build world state payload
+// -----------------------------------------------
+
+function buildWorldStatePayload(): WorldStatePayload {
+    const nextTick = currentState.tick + 1;
+    const pendingActions = repo.loadPendingActions(nextTick);
+    
+    return {
+        state: currentState,
+        pendingActions,
+    };
+}
+
+// -----------------------------------------------
+// Socket connection handling
+// -----------------------------------------------
+
 io.on('connection', (socket) => {
     console.log(`[MESH] Client connected: ${socket.id}`);
     
-    // Send current state to newly connected client
-    socket.emit('STATE_UPDATE', currentState);
+    // Send current state AND pending actions to newly connected client
+    // This ensures ghosts appear immediately after browser refresh
+    socket.emit('STATE_UPDATE', buildWorldStatePayload());
     
-    // Handle action queueing
+    // Handle explicit state request (for when client missed initial broadcast)
+    socket.on('CMD_REQUEST_STATE', () => {
+        console.log(`[MESH] State requested by: ${socket.id}`);
+        socket.emit('STATE_UPDATE', buildWorldStatePayload());
+    });
+    
+    // Handle action queueing - persist immediately, then broadcast
     socket.on('CMD_QUEUE_ACTION', (action: PlayerAction) => {
-        console.log(`[MESH] Action queued: ${action.action_type} from ${action.controller_id}`);
-        actionQueue.push(action);
+        const nextTick = currentState.tick + 1;
+        
+        console.log(`[MESH] Action queued for tick ${nextTick}: ${action.action_type} from ${action.controller_id}`);
+        
+        try {
+            // Persist to database immediately (server-authoritative)
+            repo.savePendingAction(nextTick, action);
+            
+            // Load fresh pending actions and broadcast to ALL clients
+            const pendingActions = repo.loadPendingActions(nextTick);
+            io.emit('PENDING_ACTIONS_UPDATE', pendingActions);
+            
+            console.log(`[MESH] Pending actions broadcast: ${pendingActions.length} total`);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            console.error(`[MESH] Failed to queue action: ${message}`);
+            socket.emit('ERROR', message);
+        }
     });
     
     // Handle tick execution
     socket.on('CMD_EXECUTE_TICK', () => {
-        console.log(`[MESH] Executing tick ${currentState.tick + 1}...`);
+        const nextTick = currentState.tick + 1;
+        console.log(`[MESH] Executing tick ${nextTick}...`);
         
         try {
-            // Convert queued actions to engine format
-            const engineActions = actionQueue
+            // Load pending actions from database (authoritative source)
+            const pendingActions = repo.loadPendingActions(nextTick);
+            
+            // Convert to engine format
+            const engineActions = pendingActions
                 .map(toEngineAction)
                 .filter((a): a is Action => a !== null);
             
             // Resolve the tick
             const nextState = resolveTick(currentState, engineActions);
             
-            // Save to database (state + actions audit trail)
-            repo.saveTick(nextState, actionQueue);
+            // Commit pending actions to historical record and clear pending
+            repo.commitPendingActions(nextTick, nextState.tick);
             
-            // Clear action queue
-            const processedActions = actionQueue;
-            actionQueue = [];
+            // Save state snapshot
+            repo.saveTick(nextState, []);
             
             // Update current state
             currentState = nextState;
             
-            console.log(`[MESH] Tick ${nextState.tick} resolved. ${processedActions.length} actions processed.`);
+            console.log(`[MESH] Tick ${nextState.tick} resolved. ${pendingActions.length} actions processed.`);
             
-            // Broadcast new state to all clients
-            io.emit('TICK_EXECUTED', currentState);
+            // Broadcast new state with fresh pending actions (for next tick)
+            io.emit('TICK_EXECUTED', buildWorldStatePayload());
             
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
