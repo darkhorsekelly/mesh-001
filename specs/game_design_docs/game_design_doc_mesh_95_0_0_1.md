@@ -276,6 +276,32 @@ Between UTC0 events, the game is played:
 
 Commerce and negotiation happen in real time. Control transfers are instant. But nothing else changes game state until the tick.
 
+### **Action bank**
+
+| Action | Short description |
+| :---- | :---- |
+| TRANSPORT | Can move another entity on surface |
+| MANEUVER | Can move itself on surface |
+| THRUST | Can thrust in space/orbit |
+| LAUNCH | Can leave surface to orbit with fuel expenditure |
+| EXTRACT | Can pull resources from wells (scales exponentially with repetition) |
+| REFINE | Can convert crude volatiles to fuel (output mass \< input mass); scales exponentially with repetition |
+| MANUFACTURE | Can convert minerals to entities (mass in \= mass out, volume in \= volume out); scales exponentially with repetition |
+| WELD | Can fuse entities together |
+| UNWELD | Can unfuse an entity from other(s) after it was welded earlier |
+| MOD | Can upgrade an entity using an available mineral store |
+| COMMIT | Can participate in PRESS/HOLD/SUPPORT |
+| SEAL AIRLOCK | Can seal for vacuum protection |
+| UNSEAL AIRLOCK | Can unseal airlock |
+| LOAD | Place a transportable entity within reach inside a container within reach |
+| UNLOAD | Remove a transportable entity from inside a container and place it somewhere else within reach |
+| TRANSPORT | Can transport another entity within reach along while it maneuvers (think towing, pulling, or hauling) |
+| VECTOR LOCK | Match vector with a moving target precisely (space/orbit); only available if possible given possible inputs |
+| MOVE SCANNER | Move repositionable sight origin (all observations roll up to player visibility) |
+| SCAN | Improves visibility level by 1 for 1 tick |
+| ENCOUNTER | (Bodies only) Initiate encounter with any target  |
+| REPRODUCE | Platform-only, increase population level |
+
 # ---
 
 # **Primitives**

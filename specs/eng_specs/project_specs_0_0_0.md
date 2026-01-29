@@ -52,6 +52,26 @@ Uses a **Relational Log** to ensure 100% auditability and replay capability:
 
 * **ViewManager**: Orchestrates switching between Telescope, Orbit, and Surface pipelines.
 
+### 3.4 Requirement: Action System Primitives
+
+* **Action templates**: All actions must be categorized by their input type: targets (0 or more), property, Targeted, or Adjustable. For example, THRUST has 0 targets and its input is of property type Vector. 
+
+* **The "draft" state**: Between "Arming" an action and "Committing" it, the system must maintain a draftAction.
+
+* **The ghost diff**: The UI must display all $T+1$ property changes using a distinct "Drafted/Projected" visual style in the Program.
+
+* **Input constraints**: The UI's job is to enforce hard limits (e.g., max contextual thrust) at the input level; but it takes its orders from the server
+
+* **Input components** must not allow values outside of the entity's current capability.
+
+* **Agnostic Inputs:** Every action phase must map to: 
+    
+    Mouse: Click-to-Arm, Drag-to-Target, Click-to-Commit.
+    
+    Keyboard: Hotkey-to-Arm, WASD-to-Target, Enter-to-Commit.
+    
+    Gamepad: Button-to-Arm, Analog-to-Target, Trigger-to-Commit.
+
 ----------------;
 
 ## 4\. Engineering Invariants

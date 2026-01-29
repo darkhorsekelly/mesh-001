@@ -50,3 +50,9 @@ alwaysApply: true
 - **"God Components":** Do not mix logic, rendering, and input.
 - **Floating Point Leak:** Never pass raw `number` types from the engine to the UI without passing through a formatter.
 - **Shadowing:** Never create a client-side state that "mirrors" what should be in the database.
+
+## 8. UI/UX & Interaction Guardrails
+- **No Interaction Assumptions:** Never assume how a UI microinteraction works (e.g., drag-and-drop vs. click-click). If the User Story is not defined down to the "pixel-and-input" level, ASK for a state machine before implementing. You have full authority to halt writing code and ask for clearer scope - anytime! You get promotions for thinking better, not just coding better.
+- **Agnostic Input Priority:** All tactical tools must support Mouse, Keyboard (WASD/Arrows/Enter/ESC), and Gamepad (Analog Sticks/Buttons) simultaneously. If it's unclear what the mappings should be, just ask. 
+- **Visuals as State:** UI elements must change state (B&W inversion, border-weight change) to reflect tool activation. No "hidden" states, and no styling bloat for 0.0.0. We are focused on happy path only for UI styling. 
+- **Action Atomicity:** Any interaction that modifies a "Hypothetical Action" must be cancellable via a universal "Abort" key (ESC / Gamepad B) without side effects.
