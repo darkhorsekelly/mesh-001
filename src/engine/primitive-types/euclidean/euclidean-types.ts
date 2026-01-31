@@ -115,4 +115,71 @@ export const VECTOR_ZERO: Vector2FP = { x: 0, y: 0 };
  */
 export const SPEED_FROM_VECTOR = (vector: Vector2FP): FP => {
     return Math.sqrt(fpAdd(fpMul(vector.x, vector.x), fpMul(vector.y, vector.y)));
+};
+
+// ===============================================
+// TRIGONOMETRY (FP)
+// ===============================================
+// FP-safe trig functions for heading calculations.
+// Heading is stored as FP degrees (0-360000 for 0-360°).
+
+/**
+ * Convert FP degrees to radians (floating-point for trig)
+ */
+export function fpDegreesToRadians(fpDegrees: FP): number {
+    return fromFP(fpDegrees) * (Math.PI / 180);
+}
+
+/**
+ * Compute cosine of an FP angle (in degrees)
+ * Returns an FP value
+ */
+export function fpCos(fpDegrees: FP): FP {
+    const radians = fpDegreesToRadians(fpDegrees);
+    return toFP(Math.cos(radians));
+}
+
+/**
+ * Compute sine of an FP angle (in degrees)
+ * Returns an FP value
+ */
+export function fpSin(fpDegrees: FP): FP {
+    const radians = fpDegreesToRadians(fpDegrees);
+    return toFP(Math.sin(radians));
+}
+
+/**
+ * Convert heading (FP degrees) and magnitude (FP) to a velocity vector.
+ * Heading 0 = +X axis, 90 = +Y axis (standard mathematical convention)
+ */
+export function fpHeadingToVector(heading: FP, magnitude: FP): Vector2FP {
+    const cosH = fpCos(heading);
+    const sinH = fpSin(heading);
+    return {
+        x: fpMul(cosH, magnitude),
+        y: fpMul(sinH, magnitude),
+    };
+}
+
+/**
+ * Clamp an FP value between min and max
+ */
+export function fpClamp(value: FP, min: FP, max: FP): FP {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+}
+
+/**
+ * Return the minimum of two FP values
+ */
+export function fpMin(a: FP, b: FP): FP {
+    return a < b ? a : b;
+}
+
+/**
+ * Return the maximum of two FP values
+ */
+export function fpMax(a: FP, b: FP): FP {
+    return a > b ? a : b;
 }

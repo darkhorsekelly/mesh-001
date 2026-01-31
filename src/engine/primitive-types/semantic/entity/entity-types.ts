@@ -7,31 +7,110 @@ import type { ZoomLevel } from '../../../state-types/state-types.js';
 
 export type EntityZoomState = ZoomLevel;
 
+// -----------------------------------------------
+// Visibility levels for sensor detection
+// -----------------------------------------------
+// 0 = undetected, 1 = blip, 2 = signature, 3 = full scan
+// TODO: Add more visibility levels
+export type VisibilityLevel = 0 | 1 | 2 | 3;
+
+// -----------------------------------------------
+// Base Entity Interface
+// -----------------------------------------------
+// All entities share these core properties
+
 interface BaseEntity {
     id: string;
     zoomState: EntityZoomState;
     position: Vector2FP;
 
-    // Velocity is a vector of two fixed-point numbers
+    // velocity is a vector of two fixed-point numbers
     velocity: Vector2FP;
 
-    // If in ORBIT state, the ID of the celestial being orbited
+    // if in ORBIT state, the ID of the celestial being orbited
     orbitTargetId?: string;
 }
 
-// TODO: Remove. 
-// Keep this type for now, but entity types like this will not exist; 
-// entities are property- and contextually-driven, not class- or type-driven
-export interface PlayerShip extends BaseEntity {
-    type: 'PLAYER_SHIP';
-    playerId: string;
-    
-    // Angle in fixed-point (0-360000 for 0-360 degrees)
-    heading: FP;          
+// -----------------------------------------------
+// Physical Properties
+// -----------------------------------------------
+// Mass, volume, and fuel for physics calculations
 
-    // Current thrust level
-    thrust: FP;      
-    fuel: FP;
+interface PhysicalProperties {
+    // total dry mass of the entity (FP)
+    mass: FP;
+
+    // spatial volume for cargo calculations (FP)
+    volume: FP;
+
+    // current fuel mass, separate from dry mass (FP)
+    fuelMass: FP;
 }
 
-export type Entity = PlayerShip;
+// -----------------------------------------------
+// Atmospheric Properties
+// -----------------------------------------------
+// Airlock state 
+
+interface AtmosphericProperties {
+    // whether the airlock is currently sealed
+    airlockSealed: boolean;
+}
+
+// -----------------------------------------------
+// Resource Store Properties
+// -----------------------------------------------
+// Raw materials carried by the entity
+
+interface ResourceStoreProperties {
+    // volatile compounds (ice, gases) in FP units
+    volatiles: FP;
+
+    // volatiles are a property value; but mineral stores are independent entities
+    // no need to store them as a proprety
+}
+
+// -----------------------------------------------
+// Sensor Properties
+// -----------------------------------------------
+// Detection and visibility state
+
+interface SensorProperties {
+    // the base optic visibility of an observing entity
+    opticLevel: VisibilityLevel;
+}
+
+// -----------------------------------------------
+// Full Entity Interface
+// -----------------------------------------------
+// Combines all property groups into a single entity type
+
+export interface Entity extends 
+    BaseEntity, 
+    PhysicalProperties, 
+    AtmosphericProperties, 
+    ResourceStoreProperties, 
+    SensorProperties {
+    
+    // discriminator for entity subtypes (eventually PLATFORM and MINERAL and CORPORATE_BUG, etc.)
+    type: string;
+
+    // optional player association
+    playerId?: string;
+    
+    // angle in fixed-point (0-360000 for 0-360 degrees)
+    heading: FP;          
+
+    // current thrust level
+    thrust: FP;
+}
+
+// -----------------------------------------------
+// Entity Update Type
+// -----------------------------------------------
+// Partial update returned by action handlers
+
+export interface EntityUpdate {
+    id: string;
+    changes: Partial<Omit<Entity, 'id' | 'type'>>;
+}

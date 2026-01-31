@@ -48,6 +48,7 @@ const FOCUS_BOX = {
 
 // -----------------------------------------------
 // Ghost visual constants
+// TODO: These should be in a stylesheet
 // -----------------------------------------------
 
 const GHOST = {
@@ -57,6 +58,19 @@ const GHOST = {
     
     // Dashed circle segments for hypothetical ghost point
     circleSegments: 8,
+};
+
+// -----------------------------------------------
+// Dither pattern constants
+// -----------------------------------------------
+
+const DITHER = {
+    // spacing between dots in pixels (checkerboard density)
+    spacing: 2,
+    
+    // brightness range for noise variation (0-255)
+    minBrightness: 0x10,
+    maxBrightness: 0x30,
 };
 
 // -----------------------------------------------
@@ -92,6 +106,7 @@ function drawFocusBox(graphics: Graphics, x: number, y: number): void {
 
 // -----------------------------------------------
 // Helper: draw dashed line
+// TODO: This should be in a stylesheet
 // -----------------------------------------------
 
 function drawDashedLine(
@@ -164,6 +179,46 @@ function drawDashedCircle(
     }
     
     graphics.stroke({ color, width: 1, alpha });
+}
+
+// -----------------------------------------------
+// Helper: simple hash for pseudo-random noise
+// -----------------------------------------------
+
+function hashNoise(x: number, y: number): number {
+    // simple hash combining position to get pseudo-random value 0-1
+    const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+    return n - Math.floor(n);
+}
+
+// -----------------------------------------------
+// Helper: draw dither pattern background
+// -----------------------------------------------
+
+function drawDitherPattern(
+    graphics: Graphics,
+    width: number,
+    height: number
+): void {
+    const { spacing, minBrightness, maxBrightness } = DITHER;
+    const brightnessRange = maxBrightness - minBrightness;
+    
+    // draw checkerboard noise pattern with variable brightness
+    // each pixel gets a pseudo-random gray value for organic texture
+    for (let y = 0; y < height; y += spacing) {
+        for (let x = 0; x < width; x += spacing) {
+            // checkerboard base - only draw every other pixel
+            if ((x + y) % (spacing * 2) < spacing) {
+                // get noise value for this position
+                const noise = hashNoise(x, y);
+                const brightness = Math.floor(minBrightness + noise * brightnessRange);
+                const color = (brightness << 16) | (brightness << 8) | brightness;
+                
+                graphics.rect(x, y, 1, 1);
+                graphics.fill({ color });
+            }
+        }
+    }
 }
 
 // -----------------------------------------------
@@ -350,6 +405,9 @@ export function TelescopeView({ gameState, selectedEntityId, actionQueue, hypoth
         const offsetY = cameraOffsetRef.current.y;
         
         graphics.clear();
+        
+        // Draw dither pattern background
+        drawDitherPattern(graphics, w, h);
         
         // Draw celestials
         for (const celestial of gameState.celestials) {
