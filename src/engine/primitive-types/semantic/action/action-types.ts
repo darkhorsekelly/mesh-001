@@ -93,7 +93,13 @@ export interface ExtractAction extends BaseAction {
 
     // entity to extract from
     // TODO: only resource well entities
-    targetIds: string[];
+    originIds: string[];
+
+    // target entities to extract to; optional - entityId will be the target
+    targetIds?: string[];
+
+    // target positions to extract to; required for minerals extraction
+    mineralTargetPosition?: Vector2FP[];
 
     // extraction rate in FP
     rate: FP;

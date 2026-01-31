@@ -45,6 +45,9 @@ interface PhysicalProperties {
 
     // current fuel mass, separate from dry mass (FP)
     fuelMass: FP;
+
+    // reach in FP units; the maximum distance an entity can affect another entity
+    reach: FP;
 }
 
 // -----------------------------------------------
@@ -63,8 +66,10 @@ interface AtmosphericProperties {
 // Raw materials carried by the entity
 
 interface ResourceStoreProperties {
-    // volatile compounds (ice, gases) in FP units
-    volatiles: FP;
+    // volatile compounds (crude or fuel) in FP units
+
+    volatilesMass: FP;
+    fuelMass: FP;
 
     // volatiles are a property value; but mineral stores are independent entities
     // no need to store them as a proprety

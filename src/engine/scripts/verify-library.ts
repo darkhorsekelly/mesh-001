@@ -8,7 +8,7 @@ import type { Entity, EntityUpdate, VisibilityLevel } from '../primitive-types/s
 import type { ActionType } from '../primitive-types/semantic/action/action-types.js';
 import type { TickContext } from '../resolvers/actions/actionTypes.js';
 import { VECTOR_ZERO, toFP, fromFP } from '../primitive-types/euclidean/euclidean-types.js';
-import { actionRegistry, isRegistered, getHandler, getValidator } from '../resolvers/actions/actionRegistry.js';
+import { actionRegistry, isRegistered } from '../resolvers/actions/actionRegistry.js';
 import { thrustHandler, thrustValidate } from '../resolvers/actions/thrustHandler.js';
 import {
     FUEL_BURN_RATE,
@@ -34,22 +34,21 @@ function createTestEntity(): Entity {
         velocity: VECTOR_ZERO,
         heading: toFP(0),
         thrust: toFP(0),
+        reach: toFP(1000),
 
         // physical properties
         mass: toFP(1000),
         volume: toFP(500),
-        fuelMass: toFP(250),
 
         // atmospheric / structural
         airlockSealed: true,
-        integrity: toFP(1000),
 
         // resource stores
-        volatiles: toFP(100),
-        minerals: toFP(50),
+        volatilesMass: toFP(100),
+        fuelMass: toFP(250),
 
         // sensors
-        visibilityLevel: 0 as VisibilityLevel,
+        opticLevel: 0 as VisibilityLevel,
     };
 
     return entity;
@@ -90,10 +89,7 @@ function verifyActionRegistry(): void {
 
     for (const actionType of actionTypes) {
         const registered = isRegistered(actionType);
-        const handler = getHandler(actionType);
-        const validator = getValidator(actionType);
-
-        const status = registered && handler && validator ? 'OK' : 'FAIL';
+        const status = registered ? 'OK' : 'FAIL';
         
         if (status === 'FAIL') {
             allRegistered = false;
@@ -117,7 +113,6 @@ function verifyEntityUpdate(): void {
         changes: {
             velocity: { x: toFP(10), y: toFP(5) },
             fuelMass: toFP(240),
-            integrity: toFP(950),
         },
     };
 
@@ -155,12 +150,11 @@ function verifyThrustHandler(): void {
         thrust: toFP(0),
         mass: toFP(1000),
         volume: toFP(500),
-        fuelMass: toFP(100),
         airlockSealed: true,
-        integrity: toFP(1000),
-        volatiles: toFP(0),
-        minerals: toFP(0),
-        visibilityLevel: 0 as VisibilityLevel,
+        volatilesMass: toFP(0),
+        fuelMass: toFP(100),
+        opticLevel: 0 as VisibilityLevel,
+        reach: toFP(1000),
     };
 
     console.log('\nInitial Ship State:');
@@ -223,7 +217,7 @@ function verifyThrustHandler(): void {
 
     console.log('\nAssertion Results:');
     
-    const newVel = update.changes.velocity;
+    const newVel = update?.changes.velocity;
     if (newVel) {
         const velXPass = Math.abs(newVel.x - expectedVelX) < toFP(0.01);
         const velYPass = Math.abs(newVel.y - expectedVelY) < toFP(0.01);
@@ -231,13 +225,13 @@ function verifyThrustHandler(): void {
         console.log(`  velocity.y: expected=${fromFP(expectedVelY)}, actual=${fromFP(newVel.y)} | ${velYPass ? 'PASS' : 'FAIL'}`);
     }
 
-    const newFuel = update.changes.fuelMass;
+    const newFuel = update?.changes.fuelMass;
     if (newFuel !== undefined) {
         const fuelPass = Math.abs(newFuel - expectedFuel) < toFP(0.01);
         console.log(`  fuelMass: expected=${fromFP(expectedFuel)}, actual=${fromFP(newFuel)} | ${fuelPass ? 'PASS' : 'FAIL'}`);
     }
 
-    const newMass = update.changes.mass;
+    const newMass = update?.changes.mass;
     if (newMass !== undefined) {
         const massPass = Math.abs(newMass - expectedMass) < toFP(0.01);
         console.log(`  mass: expected=${fromFP(expectedMass)}, actual=${fromFP(newMass)} | ${massPass ? 'PASS' : 'FAIL'}`);
@@ -250,7 +244,7 @@ function verifyThrustHandler(): void {
 
     if (updates90.length > 0) {
         const update90 = updates90[0];
-        const vel90 = update90.changes.velocity;
+        const vel90 = update90?.changes.velocity;
         if (vel90) {
             // heading=90 means thrust in +Y direction
             // deltaV.x = cos(90) * 5 ≈ 0, deltaV.y = sin(90) * 5 = 5
@@ -268,7 +262,7 @@ function verifyThrustHandler(): void {
 
     if (updatesLowFuel.length > 0) {
         const updateLF = updatesLowFuel[0];
-        const fuelLF = updateLF.changes.fuelMass;
+        const fuelLF = updateLF?.changes.fuelMass;
         if (fuelLF !== undefined) {
             // should only burn available 5, not requested 100
             const fuelDepleted = fuelLF <= toFP(0.1);

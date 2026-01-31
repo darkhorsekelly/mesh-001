@@ -66,3 +66,19 @@ export const FP_TWO_PI: FP = toFP(2 * Math.PI);
  * Degrees to radians conversion factor (PI / 180)
  */
 export const FP_DEG_TO_RAD: FP = toFP(Math.PI / 180);
+
+// -----------------------------------------------
+// Refining Tuning
+// -----------------------------------------------
+
+/**
+ * Efficiency of the refining process (percentage in FP).
+ * 800 = 80% efficiency (800/1000 of input becomes fuel, rest is waste)
+ */
+export const REFINE_EFFICIENCY: FP = toFP(0.8);
+
+/**
+ * Maximum batch size for refining in a single tick (FP units).
+ * Limits how much volatilesMass can be processed per action.
+ */
+export const REFINE_MAX_BATCH: FP = toFP(5000);

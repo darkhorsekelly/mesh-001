@@ -15,7 +15,7 @@ import { GameStateRepository, type PlayerAction } from '../engine/data/gameState
 import type { GameState } from '../engine/state-types/state-types.js';
 import type { Action } from '../engine/primitive-types/semantic/action/action-types.js';
 import type { Planet, Moon, Asteroid } from '../engine/primitive-types/semantic/celestial/celestial-types.js';
-import type { PlayerShip } from '../engine/primitive-types/semantic/entity/entity-types.js';
+import type { Entity, VisibilityLevel } from '../engine/primitive-types/semantic/entity/entity-types.js';
 import { toFP, VECTOR_ZERO } from '../engine/primitive-types/euclidean/euclidean-types.js';
 
 // -----------------------------------------------
@@ -75,7 +75,7 @@ function createInitialState(): GameState {
         velocity: { x: toFP(0.5), y: toFP(-0.2) },
     };
     
-    const player1: PlayerShip = {
+    const player1: Entity = {
         id: randomUUID(),
         type: 'PLAYER_SHIP',
         playerId: 'player-1',
@@ -84,10 +84,16 @@ function createInitialState(): GameState {
         velocity: VECTOR_ZERO,
         heading: toFP(0),
         thrust: toFP(0),
-        fuel: toFP(100),
+        mass: toFP(1000),
+        volume: toFP(1000),
+        airlockSealed: true,
+        opticLevel: 0 as VisibilityLevel,
+        volatilesMass: toFP(100),
+        fuelMass: toFP(100),
+        reach: toFP(1000),
     };
     
-    const player2: PlayerShip = {
+    const player2: Entity = {
         id: randomUUID(),
         type: 'PLAYER_SHIP',
         playerId: 'player-2',
@@ -96,7 +102,13 @@ function createInitialState(): GameState {
         velocity: VECTOR_ZERO,
         heading: toFP(180000),
         thrust: toFP(0),
-        fuel: toFP(100),
+        fuelMass: toFP(100),
+        volatilesMass: toFP(0),
+        opticLevel: 0 as VisibilityLevel,
+        mass: toFP(1000),
+        volume: toFP(1000),
+        airlockSealed: true,
+        reach: toFP(1000),
     };
     
     return {

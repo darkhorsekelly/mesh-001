@@ -161,7 +161,7 @@ export function EntityInspector({ entity }: EntityInspectorProps) {
             
             <div style={STYLES.row}>
                 <span style={STYLES.label}>Fuel</span>
-                <span style={STYLES.value}>{formatFuel(entity.fuel)}</span>
+                <span style={STYLES.value}>{formatFuel(entity.fuelMass)}</span>
             </div>
         </div>
     );
