@@ -19,7 +19,7 @@ import { REFINE_EFFICIENCY, REFINE_MAX_BATCH } from '../config/engineConfig.js';
 function createShip(overrides: Partial<Entity> = {}): Entity {
     return {
         id: 'ship-001',
-        type: 'SHIP',
+        type: 'ENTITY',
         playerId: 'player-001',
         zoomState: 'SPACE',
         position: { x: toFP(0), y: toFP(0) },
@@ -66,11 +66,11 @@ function createMockContext(tick: number, entities: Entity[]): TickContext {
         entities,
         state: {
             tick,
-            zoomLevel: 'SPACE',
-            targetCelestialId: null,
+            seed: 'test-seed',
+            systems: [],
             entities,
             celestials: [],
-        } as GameState,
+        },
     };
 }
 

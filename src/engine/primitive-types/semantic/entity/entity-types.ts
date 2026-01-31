@@ -1,6 +1,8 @@
 // ===============================================
 // ENTITY TYPES
 // =============================================== 
+// Defines all entity types in the universe. Entities are all non-celestial "stuff" in the universe
+// They can be corporate-controlled, player-controlled, or not controlled
 
 import type { Vector2FP, FP } from '../../euclidean/euclidean-types.js';
 import type { ZoomLevel } from '../../../state-types/state-types.js';
@@ -8,16 +10,35 @@ import type { ZoomLevel } from '../../../state-types/state-types.js';
 export type EntityZoomState = ZoomLevel;
 
 // -----------------------------------------------
+// Entity Type Union
+// -----------------------------------------------
+// Strict union of all valid entity types.
+
+export type EntityType =
+    | 'ENTITY'
+    | 'CORPORATE'
+    | 'PLATFORM'
+    | 'RESOURCE_WELL'
+    | 'MINERAL_STORE';
+
+// -----------------------------------------------
+// Resource Well Type
+// -----------------------------------------------
+// What kind of celestial body backs this resource well.
+
+export type WellOriginType = 'ASTEROID' | 'PLANET' | 'MOON';
+
+// -----------------------------------------------
 // Visibility levels for sensor detection
 // -----------------------------------------------
 // 0 = undetected, 1 = blip, 2 = signature, 3 = full scan
-// TODO: Add more visibility levels
+
 export type VisibilityLevel = 0 | 1 | 2 | 3;
 
 // -----------------------------------------------
 // Base Entity Interface
 // -----------------------------------------------
-// All entities share these core properties
+// All entities share these core properties.
 
 interface BaseEntity {
     id: string;
@@ -34,7 +55,7 @@ interface BaseEntity {
 // -----------------------------------------------
 // Physical Properties
 // -----------------------------------------------
-// Mass, volume, and fuel for physics calculations
+// Mass, volume, and fuel for physics calculations.
 
 interface PhysicalProperties {
     // total dry mass of the entity (FP)
@@ -53,7 +74,7 @@ interface PhysicalProperties {
 // -----------------------------------------------
 // Atmospheric Properties
 // -----------------------------------------------
-// Airlock state 
+// Airlock state.
 
 interface AtmosphericProperties {
     // whether the airlock is currently sealed
@@ -63,22 +84,20 @@ interface AtmosphericProperties {
 // -----------------------------------------------
 // Resource Store Properties
 // -----------------------------------------------
-// Raw materials carried by the entity
+// Raw materials carried by the entity.
 
 interface ResourceStoreProperties {
-    // volatile compounds (crude or fuel) in FP units
-
+    // volatile compounds (crude) in FP units
     volatilesMass: FP;
-    fuelMass: FP;
 
-    // volatiles are a property value; but mineral stores are independent entities
-    // no need to store them as a proprety
+    // refined fuel mass (separate from dry mass)
+    fuelMass: FP;
 }
 
 // -----------------------------------------------
 // Sensor Properties
 // -----------------------------------------------
-// Detection and visibility state
+// Detection and visibility state.
 
 interface SensorProperties {
     // the base optic visibility of an observing entity
@@ -88,7 +107,7 @@ interface SensorProperties {
 // -----------------------------------------------
 // Full Entity Interface
 // -----------------------------------------------
-// Combines all property groups into a single entity type
+// Combines all property groups into a single entity type.
 
 export interface Entity extends 
     BaseEntity, 
@@ -97,8 +116,8 @@ export interface Entity extends
     ResourceStoreProperties, 
     SensorProperties {
     
-    // discriminator for entity subtypes (eventually PLATFORM and MINERAL and CORPORATE_BUG, etc.)
-    type: string;
+    // discriminator for entity subtypes
+    type: EntityType;
 
     // optional player association
     playerId?: string;
@@ -108,14 +127,63 @@ export interface Entity extends
 
     // current thrust level
     thrust: FP;
+
+    // resource well specific: what celestial backs this well (optional)
+    wellOriginType?: WellOriginType;
+
+    // resource well specific: linked celestial ID (optional)
+    linkedCelestialId?: string;
 }
 
 // -----------------------------------------------
 // Entity Update Type
 // -----------------------------------------------
-// Partial update returned by action handlers
+// Partial update returned by action handlers.
 
 export interface EntityUpdate {
     id: string;
     changes: Partial<Omit<Entity, 'id' | 'type'>>;
 }
+
+// -----------------------------------------------
+// Type Guards
+// -----------------------------------------------
+
+export function isEntity(entity: Entity): boolean {
+    return entity.type === 'ENTITY';
+}
+
+export function isCorporate(entity: Entity): boolean {
+    return entity.type === 'CORPORATE';
+}
+
+export function isPlatform(entity: Entity): boolean {
+    return entity.type === 'PLATFORM';
+}
+
+export function isResourceWell(entity: Entity): boolean {
+    return entity.type === 'RESOURCE_WELL';
+}
+
+export function isMineralStore(entity: Entity): boolean {
+    return entity.type === 'MINERAL_STORE';
+}
+
+// -----------------------------------------------
+// Entity Factory Defaults
+// -----------------------------------------------
+// Default values for creating new entities.
+
+export const ENTITY_DEFAULTS: Omit<Entity, 'id' | 'type' | 'position'> = {
+    zoomState: 'SPACE',
+    velocity: { x: 0, y: 0 },
+    mass: 0,
+    volume: 0,
+    fuelMass: 0,
+    reach: 0,
+    airlockSealed: false,
+    volatilesMass: 0,
+    opticLevel: 0,
+    heading: 0,
+    thrust: 0,
+};

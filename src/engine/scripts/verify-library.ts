@@ -25,7 +25,7 @@ function createTestEntity(): Entity {
     const entity: Entity = {
         // core identity
         id: 'test-entity-001',
-        type: 'TEST_SHIP',
+        type: 'ENTITY',
         playerId: 'player-001',
 
         // spatial state
@@ -141,7 +141,7 @@ function verifyThrustHandler(): void {
     // create test entity with known values
     const ship: Entity = {
         id: 'thrust-test-ship',
-        type: 'TEST_SHIP',
+        type: 'ENTITY',
         playerId: 'player-001',
         zoomState: 'SPACE',
         position: { x: toFP(0), y: toFP(0) },
@@ -169,6 +169,8 @@ function verifyThrustHandler(): void {
         entities: [ship],
         state: {
             tick: 1,
+            seed: 'test-seed',
+            systems: [],
             entities: [ship],
             celestials: [],
         },

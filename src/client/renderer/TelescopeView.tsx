@@ -411,6 +411,19 @@ export function TelescopeView({ gameState, selectedEntityId, actionQueue, hypoth
         
         // Draw celestials
         for (const celestial of gameState.celestials) {
+            // handle wormhole's dual-endpoint structure
+            if (celestial.type === 'WORMHOLE') {
+                const r = Math.max(SIZES.minRadius, fpToScreen(celestial.radius) * VIEWPORT.scale);
+                for (const endpoint of celestial.endpoints) {
+                    const x = cx + (fpToScreen(endpoint.x) * VIEWPORT.scale) - offsetX;
+                    const y = cy - (fpToScreen(endpoint.y) * VIEWPORT.scale) - offsetY;
+                    // wormholes render as dashed circles
+                    graphics.circle(x, y, r);
+                    graphics.stroke({ color: COLORS.foreground, width: 1 });
+                }
+                continue;
+            }
+
             const x = cx + (fpToScreen(celestial.position.x) * VIEWPORT.scale) - offsetX;
             const y = cy - (fpToScreen(celestial.position.y) * VIEWPORT.scale) - offsetY;
             const r = Math.max(SIZES.minRadius, fpToScreen(celestial.radius) * VIEWPORT.scale);

@@ -7,16 +7,14 @@
 
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { randomUUID } from 'crypto';
 
 // Engine imports
 import { resolveTick } from '../engine/state-handlers/tickResolver.js';
 import { GameStateRepository, type PlayerAction } from '../engine/data/gameStateRepository.js';
+import { generateUniverse } from '../engine/genesis/genesisService.js';
 import type { GameState } from '../engine/state-types/state-types.js';
 import type { Action } from '../engine/primitive-types/semantic/action/action-types.js';
-import type { Planet, Moon, Asteroid } from '../engine/primitive-types/semantic/celestial/celestial-types.js';
-import type { Entity, VisibilityLevel } from '../engine/primitive-types/semantic/entity/entity-types.js';
-import { toFP, VECTOR_ZERO } from '../engine/primitive-types/euclidean/euclidean-types.js';
+import { toFP } from '../engine/primitive-types/euclidean/euclidean-types.js';
 
 // -----------------------------------------------
 // Configuration
@@ -24,98 +22,32 @@ import { toFP, VECTOR_ZERO } from '../engine/primitive-types/euclidean/euclidean
 
 const PORT = process.env.PORT ?? 3000;
 const DB_PATH = process.env.DB_PATH ?? './mesh.db';
+const GENESIS_SEED = process.env.GENESIS_SEED ?? 'mesh-genesis-default';
 
 // -----------------------------------------------
-// The triangle - Initial world state
+// Initial world state (Genesis PCG)
 // -----------------------------------------------
 
 /**
- * Create the initial "Triangle" universe
- * 1 Planet, 1 Moon, 1 Asteroid, 2 Players
- * TEMP
- * TODO: PCG-generate the initial state
+ * Create the initial universe using the Genesis service.
+ * Generates a deterministic universe from the GENESIS_SEED.
  */
 function createInitialState(): GameState {
-    const planet: Planet = {
-        id: randomUUID(),
-        type: 'PLANET',
-        name: 'Severanace-7',
-        planetType: 'TERRESTRIAL',
-        position: { x: 0, y: 0 },
-        mass: toFP(1000),
-        radius: toFP(100),
-        z: toFP(0),
-        atmosphere: toFP(0.7),
-        orbitRadius: toFP(500),
-    };
+    console.log(`[Genesis] Generating universe with seed: ${GENESIS_SEED}`);
     
-    const moon: Moon = {
-        id: randomUUID(),
-        type: 'MOON',
-        name: 'Cairn of Palms',
-        parentPlanetId: planet.id,
-        position: { x: toFP(300), y: toFP(0) },
-        mass: toFP(50),
-        radius: toFP(25),
-        z: toFP(0),
-        orbitAngle: toFP(0),
-        orbitSpeed: toFP(1),
-        atmosphere: toFP(0),
-        orbitRadius: toFP(100),
-    };
+    const state = generateUniverse(GENESIS_SEED, ['player-1', 'player-2'], {
+        systemCount: 2,
+        planetsPerSystem: [2, 4],
+        moonsPerPlanet: [0, 2],
+        asteroidsPerSystem: [3, 8],
+        systemSpacing: toFP(10000000),
+        playerStartingFuel: toFP(500),
+        playerStartingMass: toFP(1000),
+    });
+
+    console.log(`[Genesis] Created ${state.systems.length} systems, ${state.celestials.length} celestials, ${state.entities.length} entities`);
     
-    const asteroid: Asteroid = {
-        id: randomUUID(),
-        type: 'ASTEROID',
-        name: '1991-QE "Driftpay"',
-        position: { x: toFP(-400), y: toFP(200) },
-        mass: toFP(10),
-        radius: toFP(5),
-        z: toFP(0),
-        velocity: { x: toFP(0.5), y: toFP(-0.2) },
-    };
-    
-    const player1: Entity = {
-        id: randomUUID(),
-        type: 'PLAYER_SHIP',
-        playerId: 'player-1',
-        zoomState: 'SPACE',
-        position: { x: toFP(200), y: toFP(100) },
-        velocity: VECTOR_ZERO,
-        heading: toFP(0),
-        thrust: toFP(0),
-        mass: toFP(1000),
-        volume: toFP(1000),
-        airlockSealed: true,
-        opticLevel: 0 as VisibilityLevel,
-        volatilesMass: toFP(100),
-        fuelMass: toFP(100),
-        reach: toFP(1000),
-    };
-    
-    const player2: Entity = {
-        id: randomUUID(),
-        type: 'PLAYER_SHIP',
-        playerId: 'player-2',
-        zoomState: 'SPACE',
-        position: { x: toFP(-200), y: toFP(-100) },
-        velocity: VECTOR_ZERO,
-        heading: toFP(180000),
-        thrust: toFP(0),
-        fuelMass: toFP(100),
-        volatilesMass: toFP(0),
-        opticLevel: 0 as VisibilityLevel,
-        mass: toFP(1000),
-        volume: toFP(1000),
-        airlockSealed: true,
-        reach: toFP(1000),
-    };
-    
-    return {
-        tick: 0,
-        entities: [player1, player2],
-        celestials: [planet, moon, asteroid],
-    };
+    return state;
 }
 
 // -----------------------------------------------
