@@ -34,7 +34,16 @@ export type ActionType =
 // -----------------------------------------------
 // Base Action Interface
 // -----------------------------------------------
-// All actions share these core properties
+// All actions share these core properties.
+// 
+// WAVE-BASED INTERLEAVING:
+// Actions are processed in "waves" based on orderIndex.
+// Wave 0 = all actions with orderIndex 0
+// Wave 1 = all actions with orderIndex 1
+// ...and so on.
+// 
+// Between each wave, physics "settles" (maneuver, binding, mass).
+// This ensures Wave 2 sees the physical reality created by Wave 1.
 
 interface BaseAction {
     type: ActionType;
@@ -44,6 +53,15 @@ interface BaseAction {
 
     // optional target entities for the action
     targetIds?: string[];
+
+    // the player who queued this action (for multi-player interleaving)
+    // if undefined, derived from entity.playerId
+    playerId?: string;
+
+    // position in the player's action queue (0 = first action this tick)
+    // actions are processed in waves: all orderIndex=0, then all orderIndex=1, etc.
+    // if undefined, defaults to 0
+    orderIndex?: number;
 }
 
 // -----------------------------------------------
@@ -294,5 +312,4 @@ export type Action =
     | MoveScannerAction
     | ScanAction
     | TransferResourceAction
-    | EncounterAction
-    | null;
+    | EncounterAction;

@@ -4,6 +4,8 @@
 // Decouples UI interactions from side effects (audio, camera, etc.)
 // Pattern: UI emits events -> Listeners react (audio, state, etc.)
 
+import type { Vector2FP } from '../../engine/primitive-types/euclidean/euclidean-types.js';
+
 // -----------------------------------------------
 // Event types
 // -----------------------------------------------
@@ -13,7 +15,11 @@ export type InputEventType =
     | 'INPUT_DESELECT'
     | 'INPUT_CYCLE_NEXT'
     | 'INPUT_CYCLE_PREV'
-    | 'INPUT_EXECUTE_TICK';
+    | 'INPUT_EXECUTE_TICK'
+    | 'CAMERA_SLEW'
+    | 'ZOOM_IN'
+    | 'ZOOM_OUT'
+    | 'ZOOM_SET';
 
 export interface InputEvent {
     type: InputEventType;
@@ -28,6 +34,16 @@ export interface SelectEntityEvent extends InputEvent {
 
 export interface DeselectEvent extends InputEvent {
     type: 'INPUT_DESELECT';
+}
+
+export interface CameraSlewEvent extends InputEvent {
+    type: 'CAMERA_SLEW';
+    payload: { target: Vector2FP; name?: string; zoomLevel?: string };
+}
+
+export interface ZoomSetEvent extends InputEvent {
+    type: 'ZOOM_SET';
+    payload: { zoomIndex: number };
 }
 
 // -----------------------------------------------
@@ -105,6 +121,48 @@ class InputEventBus {
     cyclePrev(): void {
         this.emit({
             type: 'INPUT_CYCLE_PREV',
+            timestamp: Date.now(),
+        });
+    }
+
+    /**
+     * Helper to emit camera slew event
+     */
+    cameraSlew(target: Vector2FP, name?: string, zoomLevel?: string): void {
+        this.emit({
+            type: 'CAMERA_SLEW',
+            payload: { target, name, zoomLevel },
+            timestamp: Date.now(),
+        });
+    }
+
+    /**
+     * Helper to emit zoom in event
+     */
+    zoomIn(): void {
+        this.emit({
+            type: 'ZOOM_IN',
+            timestamp: Date.now(),
+        });
+    }
+
+    /**
+     * Helper to emit zoom out event
+     */
+    zoomOut(): void {
+        this.emit({
+            type: 'ZOOM_OUT',
+            timestamp: Date.now(),
+        });
+    }
+
+    /**
+     * Helper to emit zoom set event
+     */
+    zoomSet(zoomIndex: number): void {
+        this.emit({
+            type: 'ZOOM_SET',
+            payload: { zoomIndex },
             timestamp: Date.now(),
         });
     }

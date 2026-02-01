@@ -8,9 +8,11 @@
 import { useState, useCallback } from 'react';
 import { useEngine } from './hooks/useEngine.js';
 import { useInput } from './hooks/useInput.js';
+import { useSensors } from './hooks/useSensors.js';
 import { ViewManager, type ViewType } from './renderer/ViewManager.js';
 import { EntityList } from './ui/EntityList.js';
 import { EntityInspector } from './ui/EntityInspector.js';
+import { NavList } from './ui/NavList.js';
 import { inputEvents } from './events/inputEvents.js';
 
 // -----------------------------------------------
@@ -130,6 +132,9 @@ export function App() {
         selectedEntity,
         hypotheticalAction,
     } = useInput(gameState, LOCAL_PLAYER_ID);
+
+    // Sensor data for navigation
+    const { celestialsBySystem } = useSensors(gameState);
     
     // Current view type
     const [activeView] = useState<ViewType>('TELESCOPE');
@@ -214,6 +219,9 @@ export function App() {
                 
                 {/* Inspector for selected entity */}
                 <EntityInspector entity={selectedEntity} />
+
+                {/* Navigation - celestial targets */}
+                <NavList celestialsBySystem={celestialsBySystem} />
             </div>
         </div>
     );

@@ -24,7 +24,7 @@ import { toFP, fpAdd, fpMul, fpDistanceSquared } from '../primitive-types/euclid
 // -----------------------------------------------
 // Deterministic PRNG using a simple hash-based approach.
 
-class SeededRNG {
+export class SeededRNG {
     private seed: number;
 
     constructor(seedString: string) {
@@ -65,6 +65,29 @@ class SeededRNG {
     // returns angle in FP degrees (0-360000)
     nextAngle(): FP {
         return toFP(this.next() * 360);
+    }
+
+    // returns boolean with given probability (0-1)
+    nextBool(probability: number = 0.5): boolean {
+        return this.next() < probability;
+    }
+
+    // picks a random element from an array
+    pick<T>(array: readonly T[]): T | undefined {
+        if (array.length === 0) return undefined;
+        const index = this.nextInt(0, array.length - 1);
+        return array[index];
+    }
+
+    // shuffles an array in place (Fisher-Yates)
+    shuffle<T>(array: T[]): T[] {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = this.nextInt(0, i);
+            const temp = array[i];
+            array[i] = array[j]!;
+            array[j] = temp!;
+        }
+        return array;
     }
 }
 
@@ -391,6 +414,8 @@ function getCaptureRadius(celestial: CelestialBody): FP {
 // -----------------------------------------------
 // Create Player Ship
 // -----------------------------------------------
+// Player ships are containers with modest cargo capacity.
+// This enables logistics operations (LOAD/UNLOAD mineral stores).
 
 function createFirstPlayerEntity(
     playerId: string,
@@ -413,6 +438,10 @@ function createFirstPlayerEntity(
         opticLevel: 1,
         heading: toFP(0),
         thrust: toFP(0),
+        // container properties - all player ships can hold cargo
+        isContainer: true,
+        containerVolume: toFP(2000),
+        inOpacity: toFP(500),
     };
 }
 

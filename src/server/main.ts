@@ -90,20 +90,27 @@ interface ClientToServerEvents {
 // -----------------------------------------------
 
 function initializeState(): GameState {
+    // check for reset flag (deletes existing database)
+    const shouldReset = process.env.RESET_DB === 'true';
+    if (shouldReset) {
+        console.log('[MESH] RESET_DB=true - clearing database...');
+        repo.reset();
+    }
+
     const latestTick = repo.getLatestTick();
     
-    // Try to load existing state (tick 0 is valid)
+    // try to load existing state (tick 0 is valid)
     const loadedState = repo.loadState(latestTick);
     if (loadedState) {
         console.log(`[MESH] Loaded state from tick ${latestTick}`);
         return loadedState;
     }
     
-    // No existing state - create the 0.0.0 triangle
-    console.log('[MESH] No existing state found. Creating The Triangle...');
+    // no existing state - generate with Genesis
+    console.log('[MESH] No existing state found. Running Genesis...');
     const initialState = createInitialState();
     
-    // Save initial state as tick 0
+    // save initial state as tick 0
     repo.saveTick(initialState, []);
     console.log('[MESH] Initial state saved at tick 0');
     
@@ -117,7 +124,7 @@ function initializeState(): GameState {
 /**
  * Convert PlayerAction to engine Action format
  */
-function toEngineAction(playerAction: PlayerAction): Action {
+function toEngineAction(playerAction: PlayerAction): Action | null {
     if (playerAction.action_type === 'THRUST') {
         const payload = playerAction.payload as { direction: { x: number; y: number }; magnitude: number };
         return {

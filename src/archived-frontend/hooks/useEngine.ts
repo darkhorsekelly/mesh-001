@@ -44,7 +44,7 @@ type TypedSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 // Used for ghost projection calculation
 // -----------------------------------------------
 
-export function toEngineAction(playerAction: PlayerAction): Action {
+export function toEngineAction(playerAction: PlayerAction): Action | null {
     if (playerAction.action_type === 'THRUST') {
         const payload = playerAction.payload as { 
             direction: { x: number; y: number }; 

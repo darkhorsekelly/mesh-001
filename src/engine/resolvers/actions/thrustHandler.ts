@@ -2,19 +2,24 @@
 // THRUST ACTION HANDLER
 // ===============================================
 // Handles direct thrust application to an entity.
-// Newtonian thrust: converts heading + magnitude into delta-V,
+// Newtonian thrust: converts direction + magnitude into delta-V,
 // consumes fuel, and reduces mass accordingly.
+//
+// Direction can come from:
+// 1. Action's direction vector (if provided and non-zero)
+// 2. Fallback: actor's heading (for backward compatibility)
 
 import type { Entity, EntityUpdate } from '../../primitive-types/semantic/entity/entity-types.js';
 import type { ActionHandler, ActionValidator, TickContext } from './actionTypes.js';
-import type { FP } from '../../primitive-types/euclidean/euclidean-types.js';
+import type { FP, Vector2FP } from '../../primitive-types/euclidean/euclidean-types.js';
 import {
     fpSub,
     fpMul,
     fpMin,
     fpClamp,
-    fpHeadingToVector,
+    fpScaleVector,
     fpAddVector,
+    fpHeadingToVector,
 } from '../../primitive-types/euclidean/euclidean-types.js';
 import {
     FUEL_BURN_RATE,
@@ -32,6 +37,25 @@ function getMagnitude(inputs: Record<string, unknown>): FP {
         return mag as FP;
     }
     return 0;
+}
+
+/**
+ * Extract direction vector from inputs, with type safety.
+ * Returns null if no valid direction found (caller should use heading fallback).
+ */
+function getDirection(inputs: Record<string, unknown>): Vector2FP | null {
+    const dir = inputs['direction'];
+    if (dir && typeof dir === 'object' && 'x' in dir && 'y' in dir) {
+        const d = dir as { x: unknown; y: unknown };
+        if (typeof d.x === 'number' && typeof d.y === 'number') {
+            const vec = { x: d.x as FP, y: d.y as FP };
+            // only return if non-zero
+            if (vec.x !== 0 || vec.y !== 0) {
+                return vec;
+            }
+        }
+    }
+    return null;
 }
 
 /**
@@ -57,6 +81,7 @@ export const thrustValidate: ActionValidator = (
         return false;
     }
 
+    // direction can come from action or actor's heading - both are valid
     return true;
 };
 
@@ -65,7 +90,7 @@ export const thrustValidate: ActionValidator = (
  * Rule: handler must call validate first to prevent illegal action desync.
  *
  * Physics:
- * - Delta-V is derived from heading and magnitude
+ * - Delta-V is derived from direction vector (or heading fallback) and magnitude
  * - Fuel consumed = magnitude * FUEL_BURN_RATE
  * - Mass lost = magnitude * MASS_PROPULSION_LOSS
  * - If requested magnitude exceeds available fuel, burn only what's available
@@ -81,7 +106,7 @@ export const thrustHandler: ActionHandler = (
         return [];
     }
 
-    // extract and clamp magnitude
+    // extract magnitude
     let magnitude = getMagnitude(inputs);
     magnitude = fpClamp(magnitude, 0, MAX_THRUST_PER_TICK);
 
@@ -90,8 +115,18 @@ export const thrustHandler: ActionHandler = (
     const maxMagnitudeFromFuel = fpMul(actor.fuelMass, FUEL_BURN_RATE);
     const effectiveMagnitude = fpMin(magnitude, maxMagnitudeFromFuel);
 
-    // compute delta-V from heading and effective magnitude
-    const deltaV = fpHeadingToVector(actor.heading, effectiveMagnitude);
+    // compute delta-V
+    // priority: use action's direction if provided, otherwise use actor's heading
+    const actionDirection = getDirection(inputs);
+    let deltaV: Vector2FP;
+    
+    if (actionDirection !== null) {
+        // direction provided by action - scale by magnitude
+        deltaV = fpScaleVector(actionDirection, effectiveMagnitude);
+    } else {
+        // fallback to actor's heading (for backward compatibility)
+        deltaV = fpHeadingToVector(actor.heading, effectiveMagnitude);
+    }
 
     // compute new velocity
     const newVelocity = fpAddVector(actor.velocity, deltaV);

@@ -336,6 +336,18 @@ export class GameStateRepository {
     close(): void {
         this.db.close();
     }
+
+    /**
+     * Reset the database - clears all tables
+     * Used for regenerating with Genesis
+     */
+    reset(): void {
+        this.db.exec('DELETE FROM pending_actions');
+        this.db.exec('DELETE FROM actions');
+        this.db.exec('DELETE FROM state_snapshots');
+        this.db.exec('DELETE FROM ticks');
+        console.log('[DB] All tables cleared');
+    }
 }
 
 // -----------------------------------------------

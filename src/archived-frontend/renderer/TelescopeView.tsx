@@ -22,8 +22,20 @@ import {
     projectCelestials,
     mergeActionsForProjection,
 } from '../../engine/state-handlers/state-systems/projectionSystem.js';
-import { VIEWPORT, COLORS, SIZES, fpToScreen, CLICK_RADIUS } from './config.js';
-import { inputEvents } from '../events/inputEvents.js';
+import {
+    VIEWPORT,
+    COLORS,
+    SIZES,
+    fpToScreen,
+    CLICK_RADIUS,
+    ZOOM_LEVELS,
+    DEFAULT_ZOOM_INDEX,
+    CELESTIAL_ZOOM_MAP,
+    getZoomIndex,
+    getZoomByIndex,
+    type ZoomLevelId,
+} from './config.js';
+import { inputEvents, type CameraSlewEvent, type ZoomSetEvent } from '../events/inputEvents.js';
 
 // -----------------------------------------------
 // Props
@@ -252,6 +264,13 @@ export function TelescopeView({ gameState, selectedEntityId, actionQueue, hypoth
     // Track when PixiJS is ready - triggers render effect after async init
     const [isAppReady, setIsAppReady] = useState(false);
     
+    // Render trigger - increments on camera slew to force re-render
+    const [renderTrigger, setRenderTrigger] = useState(0);
+
+    // Zoom level index into ZOOM_LEVELS array
+    const [zoomIndex, setZoomIndex] = useState(DEFAULT_ZOOM_INDEX);
+    const currentZoom = getZoomByIndex(zoomIndex);
+    
     // Camera offset - persists when deselecting
     const cameraOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
     
@@ -284,8 +303,8 @@ export function TelescopeView({ gameState, selectedEntityId, actionQueue, hypoth
         for (const entity of state.entities) {
             // Convert entity world position to screen position
             // Must match the rendering formula exactly
-            const entityScreenX = cx + (fpToScreen(entity.position.x) * VIEWPORT.scale) - offsetX;
-            const entityScreenY = cy - (fpToScreen(entity.position.y) * VIEWPORT.scale) - offsetY;
+            const entityScreenX = cx + (fpToScreen(entity.position.x) * currentZoom.scale) - offsetX;
+            const entityScreenY = cy - (fpToScreen(entity.position.y) * currentZoom.scale) - offsetY;
             
             // Distance squared from click to entity
             const dx = clickX - entityScreenX;
@@ -374,6 +393,78 @@ export function TelescopeView({ gameState, selectedEntityId, actionQueue, hypoth
             setIsAppReady(false);
         };
     }, [findEntityAtClick]);
+
+    // Scroll wheel zoom
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const handleWheel = (e: WheelEvent) => {
+            e.preventDefault();
+            if (e.deltaY < 0) {
+                inputEvents.zoomIn();
+            } else {
+                inputEvents.zoomOut();
+            }
+        };
+
+        container.addEventListener('wheel', handleWheel, { passive: false });
+        return () => container.removeEventListener('wheel', handleWheel);
+    }, []);
+
+    // Subscribe to CAMERA_SLEW events
+    useEffect(() => {
+        const unsubscribe = inputEvents.on('CAMERA_SLEW', (event) => {
+            const { target, name, zoomLevel } = (event as CameraSlewEvent).payload;
+            
+            // deselect any entity to prevent lock-on from overriding slew
+            inputEvents.deselect();
+
+            // auto-zoom based on celestial type
+            let scale = currentZoom.scale;
+            if (zoomLevel && zoomLevel in CELESTIAL_ZOOM_MAP) {
+                const targetZoomId = CELESTIAL_ZOOM_MAP[zoomLevel] as ZoomLevelId;
+                const newZoomIndex = getZoomIndex(targetZoomId);
+                setZoomIndex(newZoomIndex);
+                scale = getZoomByIndex(newZoomIndex).scale;
+            }
+            
+            // update camera offset to center on target position
+            cameraOffsetRef.current = {
+                x: fpToScreen(target.x) * scale,
+                y: -fpToScreen(target.y) * scale,
+            };
+
+            // trigger re-render with new camera position
+            setRenderTrigger(prev => prev + 1);
+
+            console.log(`[Camera] Slew to: ${name || 'unknown'}`);
+        });
+
+        return unsubscribe;
+    }, [currentZoom]);
+
+    // Subscribe to zoom events
+    useEffect(() => {
+        const unsubIn = inputEvents.on('ZOOM_IN', () => {
+            setZoomIndex(prev => Math.min(prev + 1, ZOOM_LEVELS.length - 1));
+        });
+        const unsubOut = inputEvents.on('ZOOM_OUT', () => {
+            setZoomIndex(prev => Math.max(prev - 1, 0));
+        });
+        const unsubSet = inputEvents.on('ZOOM_SET', (event) => {
+            const { zoomIndex: idx } = (event as ZoomSetEvent).payload;
+            if (idx >= 0 && idx < ZOOM_LEVELS.length) {
+                setZoomIndex(idx);
+            }
+        });
+
+        return () => {
+            unsubIn();
+            unsubOut();
+            unsubSet();
+        };
+    }, []);
     
     // Render game state
     useEffect(() => {
@@ -395,8 +486,8 @@ export function TelescopeView({ gameState, selectedEntityId, actionQueue, hypoth
         if (selectedEntity) {
             // Lock-on: offset so selected entity is at screen center
             cameraOffsetRef.current = {
-                x: fpToScreen(selectedEntity.position.x) * VIEWPORT.scale,
-                y: -fpToScreen(selectedEntity.position.y) * VIEWPORT.scale,
+                x: fpToScreen(selectedEntity.position.x) * currentZoom.scale,
+                y: -fpToScreen(selectedEntity.position.y) * currentZoom.scale,
             };
         }
         // If deselected, camera offset stays at last known position (no reset)
@@ -407,16 +498,24 @@ export function TelescopeView({ gameState, selectedEntityId, actionQueue, hypoth
         graphics.clear();
         
         // Draw dither pattern background
-        drawDitherPattern(graphics, w, h);
+        // drawDitherPattern(graphics, w, h);
+        
+        // Draw center crosshair (debug aid)
+        const crossSize = 10;
+        graphics.moveTo(cx - crossSize, cy);
+        graphics.lineTo(cx + crossSize, cy);
+        graphics.moveTo(cx, cy - crossSize);
+        graphics.lineTo(cx, cy + crossSize);
+        graphics.stroke({ color: 0x333333, width: 1 });
         
         // Draw celestials
         for (const celestial of gameState.celestials) {
             // handle wormhole's dual-endpoint structure
             if (celestial.type === 'WORMHOLE') {
-                const r = Math.max(SIZES.minRadius, fpToScreen(celestial.radius) * VIEWPORT.scale);
+                const r = Math.max(SIZES.minRadius, fpToScreen(celestial.radius) * currentZoom.scale);
                 for (const endpoint of celestial.endpoints) {
-                    const x = cx + (fpToScreen(endpoint.x) * VIEWPORT.scale) - offsetX;
-                    const y = cy - (fpToScreen(endpoint.y) * VIEWPORT.scale) - offsetY;
+                    const x = cx + (fpToScreen(endpoint.x) * currentZoom.scale) - offsetX;
+                    const y = cy - (fpToScreen(endpoint.y) * currentZoom.scale) - offsetY;
                     // wormholes render as dashed circles
                     graphics.circle(x, y, r);
                     graphics.stroke({ color: COLORS.foreground, width: 1 });
@@ -424,16 +523,20 @@ export function TelescopeView({ gameState, selectedEntityId, actionQueue, hypoth
                 continue;
             }
 
-            const x = cx + (fpToScreen(celestial.position.x) * VIEWPORT.scale) - offsetX;
-            const y = cy - (fpToScreen(celestial.position.y) * VIEWPORT.scale) - offsetY;
-            const r = Math.max(SIZES.minRadius, fpToScreen(celestial.radius) * VIEWPORT.scale);
+            const x = cx + (fpToScreen(celestial.position.x) * currentZoom.scale) - offsetX;
+            const y = cy - (fpToScreen(celestial.position.y) * currentZoom.scale) - offsetY;
+            const r = Math.max(SIZES.minRadius, fpToScreen(celestial.radius) * currentZoom.scale);
             
-            if (celestial.type === 'PLANET' || celestial.type === 'MOON') {
-                // Circle with radius
+            if (celestial.type === 'SOL') {
+                // Sol: filled circle (star)
+                graphics.circle(x, y, Math.max(8, r));
+                graphics.fill({ color: COLORS.foreground });
+            } else if (celestial.type === 'PLANET' || celestial.type === 'MOON') {
+                // Planet/Moon: stroked circle
                 graphics.circle(x, y, r);
                 graphics.stroke({ color: COLORS.foreground, width: 1 });
-            } else {
-                // Point
+            } else if (celestial.type === 'ASTEROID') {
+                // Asteroid: small filled point
                 graphics.circle(x, y, SIZES.point);
                 graphics.fill({ color: COLORS.foreground });
             }
@@ -441,8 +544,8 @@ export function TelescopeView({ gameState, selectedEntityId, actionQueue, hypoth
         
         // Draw entities as points
         for (const entity of gameState.entities) {
-            const x = cx + (fpToScreen(entity.position.x) * VIEWPORT.scale) - offsetX;
-            const y = cy - (fpToScreen(entity.position.y) * VIEWPORT.scale) - offsetY;
+            const x = cx + (fpToScreen(entity.position.x) * currentZoom.scale) - offsetX;
+            const y = cy - (fpToScreen(entity.position.y) * currentZoom.scale) - offsetY;
             
             graphics.circle(x, y, SIZES.point);
             graphics.fill({ color: COLORS.foreground });
@@ -457,8 +560,8 @@ export function TelescopeView({ gameState, selectedEntityId, actionQueue, hypoth
         // INVARIANT: Project celestials to T+1 before entity projection
         if (selectedEntity) {
             // Current position for the trajectory line
-            const currentX = cx + (fpToScreen(selectedEntity.position.x) * VIEWPORT.scale) - offsetX;
-            const currentY = cy - (fpToScreen(selectedEntity.position.y) * VIEWPORT.scale) - offsetY;
+            const currentX = cx + (fpToScreen(selectedEntity.position.x) * currentZoom.scale) - offsetX;
+            const currentY = cy - (fpToScreen(selectedEntity.position.y) * currentZoom.scale) - offsetY;
             
             // DISPLAY LOGIC: Only calculate if entity is within viewport bounds
             if (!isInViewport(currentX, currentY, w, h)) {
@@ -472,8 +575,8 @@ export function TelescopeView({ gameState, selectedEntityId, actionQueue, hypoth
             // AUTHORITATIVE GHOST: velocity + server pending actions
             // Visual: solid point with solid line
             const authEntity = projectEntity(selectedEntity, actionQueue, celestialsT1);
-            const authX = cx + (fpToScreen(authEntity.position.x) * VIEWPORT.scale) - offsetX;
-            const authY = cy - (fpToScreen(authEntity.position.y) * VIEWPORT.scale) - offsetY;
+            const authX = cx + (fpToScreen(authEntity.position.x) * currentZoom.scale) - offsetX;
+            const authY = cy - (fpToScreen(authEntity.position.y) * currentZoom.scale) - offsetY;
             
             const authMoved = Math.abs(authX - currentX) > 0.5 || Math.abs(authY - currentY) > 0.5;
             
@@ -493,8 +596,8 @@ export function TelescopeView({ gameState, selectedEntityId, actionQueue, hypoth
             if (hypotheticalAction) {
                 const combinedActions = mergeActionsForProjection(actionQueue, hypotheticalAction);
                 const hypoEntity = projectEntity(selectedEntity, combinedActions, celestialsT1);
-                const hypoX = cx + (fpToScreen(hypoEntity.position.x) * VIEWPORT.scale) - offsetX;
-                const hypoY = cy - (fpToScreen(hypoEntity.position.y) * VIEWPORT.scale) - offsetY;
+                const hypoX = cx + (fpToScreen(hypoEntity.position.x) * currentZoom.scale) - offsetX;
+                const hypoY = cy - (fpToScreen(hypoEntity.position.y) * currentZoom.scale) - offsetY;
                 
                 // Only draw if different from authoritative position
                 const hypoDifferent = Math.abs(hypoX - authX) > 0.5 || Math.abs(hypoY - authY) > 0.5;
@@ -509,7 +612,7 @@ export function TelescopeView({ gameState, selectedEntityId, actionQueue, hypoth
             }
         }
         
-    }, [gameState, selectedEntityId, actionQueue, hypotheticalAction, isAppReady]);
+    }, [gameState, selectedEntityId, actionQueue, hypotheticalAction, isAppReady, renderTrigger, zoomIndex]);
     
     return (
         <div

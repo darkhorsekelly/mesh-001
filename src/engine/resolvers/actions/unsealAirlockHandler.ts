@@ -1,29 +1,31 @@
 // ===============================================
 // UNSEAL AIRLOCK ACTION HANDLER
 // ===============================================
-// Handles unsealing an entity's airlock.
+// handles unsealing an entity's airlock.
 
 import type { Entity, EntityUpdate } from '../../primitive-types/semantic/entity/entity-types.js';
 import type { ActionHandler, ActionValidator, TickContext } from './actionTypes.js';
 
 /**
- * Validates whether the unseal airlock action can be performed.
- * Checks both Capability (has required systems) and State (resources available).
+ * validates whether the unseal airlock action can be performed.
+ * checks both Capability (has required systems) and State (resources available).
  */
 export const unsealAirlockValidate: ActionValidator = (
-    _actor: Entity,
+    actor: Entity,
     _targets: Entity[],
     _inputs: Record<string, unknown>
 ): boolean => {
-    // capability: does the entity have an airlock?
-    // state: is the airlock currently sealed?
-    // stub: always returns false until implemented
-    return false;
+    // state check: airlock must currently be sealed
+    if (!actor.airlockSealed) {
+        return false;
+    }
+
+    return true;
 };
 
 /**
- * Executes the unseal airlock action.
- * Rule: handler must call validate first to prevent illegal action desync.
+ * executes the unseal airlock action.
+ * rule: handler must call validate first to prevent illegal action desync.
  */
 export const unsealAirlockHandler: ActionHandler = (
     actor: Entity,
@@ -36,6 +38,10 @@ export const unsealAirlockHandler: ActionHandler = (
         return [];
     }
 
-    // implementation goes here
-    return [];
+    return [{
+        id: actor.id,
+        changes: {
+            airlockSealed: false,
+        },
+    }];
 };
